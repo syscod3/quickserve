@@ -1,0 +1,32 @@
+package app
+
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+type Config struct {
+	Dir       string
+	Port      int
+	UPnP      bool
+	UPnPPort  int
+	UPnPLease time.Duration
+	Version   bool
+}
+
+func (c Config) Validate() error {
+	if c.Dir == "" {
+		return errors.New("directory is required")
+	}
+	if c.Port < 0 || c.Port > 65535 {
+		return fmt.Errorf("port %d is invalid", c.Port)
+	}
+	if c.UPnPPort < 0 || c.UPnPPort > 65535 {
+		return fmt.Errorf("UPnP port %d is invalid", c.UPnPPort)
+	}
+	if c.UPnPLease < 0 {
+		return errors.New("UPnP lease duration must not be negative")
+	}
+	return nil
+}

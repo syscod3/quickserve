@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Download modules
+        run: |
+          set -euo pipefail
+          go mod download
+
+      - name: Check formatting
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l .)"
+
+      - name: Check go mod tidy
+        run: |
+          set -euo pipefail
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Vet
+        run: |
+          set -euo pipefail
+          go vet ./...
+
+      - name: Test
+        run: |
+          set -euo pipefail
+          go test -race ./...
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          go build ./...
+          go build -o quickserve .
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"; if [[ -n "${pid:-}" ]]; then kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi' EXIT
+          printf 'quickserve smoke test\n' > "$tmpdir/test.txt"
+          ./quickserve -dir "$tmpdir" -port 18080 > "$tmpdir/quickserve.log" 2>&1 &
+          pid=$!
+          for _ in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18080/test.txt > "$tmpdir/output.txt"; then
+              break
+            fi
+            sleep 0.25
+          done
+          grep -F "quickserve smoke test" "$tmpdir/output.txt"
+          kill -TERM "$pid"
+          wait "$pid"
+          unset pid

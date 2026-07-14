@@ -1,0 +1,9 @@
+dist/
+quickserve
+quickserve.exe
+*.log
+.DS_Store
+.idea/
+.vscode/
+.specstory/
+*.tmp
