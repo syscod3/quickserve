@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/syscod3/quickserve/internal/netinfo"
+	"github.com/syscod3/quickserve/internal/tunnel"
 )
 
 func TestServerServesSelectedRootAndReportsPortZero(t *testing.T) {
@@ -76,6 +77,43 @@ func TestServerServesSelectedRootAndReportsPortZero(t *testing.T) {
 	}
 }
 
+func TestServerStartsCloudflareTunnelAndReportsURL(t *testing.T) {
+	root := t.TempDir()
+	tunneler := &fakeTunnelStarter{session: &fakeTunnelSession{url: "https://example.trycloudflare.com"}}
+	runner := NewRunnerWithTunnel(Config{Dir: root, Port: 0, UPnPLease: time.Hour, Tunnel: "cloudflare"}, StaticNetInfo{
+		LAN: "192.0.2.10",
+	}, nil, tunneler)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	started, errc := runner.Start(ctx, io.Discard)
+	select {
+	case err := <-errc:
+		t.Fatalf("Start() failed: %v", err)
+	case <-started.Ready:
+	}
+
+	if tunneler.localURL == "" {
+		t.Fatal("tunnel was not started")
+	}
+	wantLocal := fmt.Sprintf("http://127.0.0.1:%d", started.Port)
+	if tunneler.localURL != wantLocal {
+		t.Fatalf("tunnel local URL = %q, want %q", tunneler.localURL, wantLocal)
+	}
+
+	cancel()
+	select {
+	case err := <-errc:
+		if err != nil {
+			t.Fatalf("shutdown error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not shut down")
+	}
+	if !tunneler.session.closed {
+		t.Fatal("tunnel was not closed")
+	}
+}
+
 type StaticNetInfo struct {
 	LAN    string
 	Public string
@@ -91,4 +129,26 @@ func (s StaticNetInfo) PublicIPv4(context.Context) (string, error) {
 		return "", netinfo.ErrNonGlobalAddress
 	}
 	return s.Public, nil
+}
+
+type fakeTunnelStarter struct {
+	localURL string
+	session  *fakeTunnelSession
+}
+
+func (f *fakeTunnelStarter) Start(_ context.Context, localURL string) (tunnel.Session, error) {
+	f.localURL = localURL
+	return f.session, nil
+}
+
+type fakeTunnelSession struct {
+	url    string
+	closed bool
+}
+
+func (f *fakeTunnelSession) URL() string { return f.url }
+
+func (f *fakeTunnelSession) Close(context.Context) error {
+	f.closed = true
+	return nil
 }

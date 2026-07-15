@@ -1,10 +1,10 @@
 # quickserve
 
-`quickserve` is a tiny Go CLI that serves a directory over HTTP and prints URLs for local and LAN access. It can also request an opt-in UPnP router mapping when you explicitly ask for public sharing.
+`quickserve` is a tiny Go CLI that serves a directory over HTTP and prints URLs for local and LAN access. It can also request an opt-in UPnP router mapping or start an outbound Cloudflare Tunnel when you explicitly ask for public sharing.
 
 ## Security Warning
 
-`quickserve` has no TLS and no authentication. Anyone who can reach the server can read files under the selected directory. When `-upnp` succeeds, those files may be reachable from the public internet.
+`quickserve` has no authentication. Anyone who can reach the server can read files under the selected directory. When `-upnp` or `-tunnel cloudflare` succeeds, those files may be reachable from the public internet.
 
 Only serve directories you intend to share.
 
@@ -110,6 +110,18 @@ quickserve -upnp -upnp-lease 0
 
 Temporary mappings are renewed while `quickserve` runs. On `Ctrl-C` or `SIGTERM`, it removes only the mapping created by that process.
 
+## Cloudflare Tunnel
+
+Cloudflare Tunnel works when direct inbound access is blocked by CGNAT. It requires the `cloudflared` command on your `PATH`.
+
+```bash
+quickserve -dir ~/Public -tunnel cloudflare
+```
+
+This starts a temporary Quick Tunnel and prints an HTTPS `trycloudflare.com` URL. The tunnel is closed when `quickserve` exits.
+
+Cloudflare Quick Tunnels are useful for ad hoc sharing. For stable hostnames or access policies, create a named Cloudflare Tunnel with Cloudflare Zero Trust and point it at the local `quickserve` URL.
+
 ## Flags
 
 ```text
@@ -123,6 +135,8 @@ Temporary mappings are renewed while `quickserve` runs. On `Ctrl-C` or `SIGTERM`
       external UPnP port; 0 uses the selected local port
 -upnp-lease duration
       UPnP lease duration; 0 requests a permanent mapping (default 1h0m0s)
+-tunnel string
+      outbound tunnel provider; supported: cloudflare
 -version
       print version information and exit
 ```
@@ -134,6 +148,7 @@ Serving: /Users/giovanni/Downloads
 Local:   http://localhost:8000/
 LAN:     http://192.168.1.42:8000/
 Public:  http://203.0.113.10:8000/
+Tunnel:  https://example.trycloudflare.com
 WARNING: This HTTP server has no TLS or authentication. Serve only files you intend to share.
          It binds to all interfaces intentionally for LAN/public serving.
 ```
@@ -143,6 +158,8 @@ WARNING: This HTTP server has no TLS or authentication. Serve only files you int
 `quickserve` binds to all interfaces intentionally so other devices on the LAN can connect. macOS may ask whether to allow incoming network connections; allow them if LAN access is required.
 
 Public access may still fail when UPnP succeeds. Common causes are double NAT, carrier-grade NAT, firewall policy, ISP filtering, or a router that accepts a mapping but does not route inbound traffic correctly.
+
+Use `-tunnel cloudflare` when CGNAT blocks inbound connections. The tunnel makes an outbound connection to Cloudflare, so it does not need port forwarding or UPnP.
 
 The server uses Go's standard `http.FileServer`. A selected root must be a valid directory. Directory listings use the standard Go behavior. Symlinks inside the served root follow normal filesystem behavior, so do not serve a directory containing symlinks to files you do not intend to share.
 

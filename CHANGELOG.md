@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.4
+
+- Add opt-in Cloudflare Quick Tunnel support with `-tunnel cloudflare` for CGNAT networks.
+- Keep `cloudflared` optional; it is only required when Cloudflare tunnel mode is used.
+
 ## v0.1.3
 
 - Improve the error message when UPnP exists on a LAN but no NAT router exposes an IGD WAN service.

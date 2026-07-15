@@ -55,6 +55,6 @@ release:
   header: |
     ## quickserve {{ .Tag }}
 
-    Warning: `quickserve` has no TLS or authentication. If `-upnp` succeeds, served files may be reachable from the public internet.
+    Warning: `quickserve` has no authentication. If `-upnp` or `-tunnel cloudflare` succeeds, served files may be reachable from the public internet.
   footer: |
     Verify downloads with `checksums.txt` and GitHub artifact attestations.

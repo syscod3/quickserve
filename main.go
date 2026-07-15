@@ -11,6 +11,7 @@ import (
 
 	"github.com/syscod3/quickserve/internal/app"
 	"github.com/syscod3/quickserve/internal/netinfo"
+	"github.com/syscod3/quickserve/internal/tunnel"
 	"github.com/syscod3/quickserve/internal/upnp"
 )
 
@@ -21,6 +22,7 @@ func main() {
 	flag.BoolVar(&cfg.UPnP, "upnp", false, "request a public TCP port mapping using UPnP IGD")
 	flag.IntVar(&cfg.UPnPPort, "upnp-port", 0, "external UPnP port; 0 uses the selected local port")
 	flag.DurationVar(&cfg.UPnPLease, "upnp-lease", time.Hour, "UPnP lease duration; 0 requests a permanent mapping")
+	flag.StringVar(&cfg.Tunnel, "tunnel", "", "outbound tunnel provider; supported: cloudflare")
 	flag.BoolVar(&cfg.Version, "version", false, "print version information and exit")
 	flag.Parse()
 
@@ -32,7 +34,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	runner := app.NewRunner(cfg, netinfo.DefaultProvider(), upnp.NewDefaultManager())
+	runner := app.NewRunnerWithTunnel(cfg, netinfo.DefaultProvider(), upnp.NewDefaultManager(), tunnel.CloudflareQuick{})
 	started, errc := runner.Start(ctx, os.Stdout)
 	select {
 	case err := <-errc:

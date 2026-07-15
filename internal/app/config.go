@@ -12,6 +12,7 @@ type Config struct {
 	UPnP      bool
 	UPnPPort  int
 	UPnPLease time.Duration
+	Tunnel    string
 	Version   bool
 }
 
@@ -27,6 +28,9 @@ func (c Config) Validate() error {
 	}
 	if c.UPnPLease < 0 {
 		return errors.New("UPnP lease duration must not be negative")
+	}
+	if c.Tunnel != "" && c.Tunnel != "cloudflare" {
+		return fmt.Errorf("tunnel provider %q is not supported", c.Tunnel)
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/syscod3/quickserve/internal/netinfo"
+	"github.com/syscod3/quickserve/internal/tunnel"
 	"github.com/syscod3/quickserve/internal/upnp"
 )
 
@@ -24,10 +25,15 @@ type UPnPMapper interface {
 	Map(context.Context, upnp.Request) (*upnp.Mapping, error)
 }
 
+type TunnelStarter interface {
+	Start(context.Context, string) (tunnel.Session, error)
+}
+
 type Runner struct {
-	cfg    Config
-	net    NetInfo
-	mapper UPnPMapper
+	cfg      Config
+	net      NetInfo
+	mapper   UPnPMapper
+	tunneler TunnelStarter
 }
 
 type Started struct {
@@ -38,6 +44,10 @@ type Started struct {
 
 func NewRunner(cfg Config, ni NetInfo, mapper UPnPMapper) *Runner {
 	return &Runner{cfg: cfg, net: ni, mapper: mapper}
+}
+
+func NewRunnerWithTunnel(cfg Config, ni NetInfo, mapper UPnPMapper, tunneler TunnelStarter) *Runner {
+	return &Runner{cfg: cfg, net: ni, mapper: mapper, tunneler: tunneler}
 }
 
 func (r *Runner) Start(ctx context.Context, out io.Writer) (*Started, <-chan error) {
@@ -89,6 +99,7 @@ func (r *Runner) run(ctx context.Context, out io.Writer, started *Started) error
 	}
 
 	var mapping *upnp.Mapping
+	var tunnelSession tunnel.Session
 	if r.cfg.UPnP {
 		if r.mapper == nil {
 			_ = listener.Close()
@@ -116,6 +127,31 @@ func (r *Runner) run(ctx context.Context, out io.Writer, started *Started) error
 		fmt.Fprintln(out, "WARNING: UPnP mapping enabled. Files are exposed publicly without TLS or authentication.")
 		fmt.Fprintln(out, "         Double NAT, CGNAT, firewall policy, or ISP filtering can still block inbound access.")
 	}
+	if r.cfg.Tunnel == "cloudflare" {
+		if r.tunneler == nil {
+			_ = listener.Close()
+			return errors.New("Cloudflare tunnel requested but no tunnel runner is configured")
+		}
+		tunnelSession, err = r.tunneler.Start(ctx, fmt.Sprintf("http://127.0.0.1:%d", port))
+		if err != nil {
+			_ = listener.Close()
+			if mapping != nil {
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = mapping.Cleanup(cleanupCtx)
+				cleanupCancel()
+			}
+			return fmt.Errorf("Cloudflare tunnel failed: %w", err)
+		}
+		defer func() {
+			if tunnelSession != nil {
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = tunnelSession.Close(cleanupCtx)
+				cleanupCancel()
+			}
+		}()
+		fmt.Fprintln(out, "WARNING: Cloudflare Tunnel enabled. Files are exposed through a public HTTPS tunnel.")
+		fmt.Fprintln(out, "         Anyone with the tunnel URL can reach this server unless Cloudflare Access is configured.")
+	}
 
 	fmt.Fprintf(out, "Serving: %s\n", root)
 	fmt.Fprintf(out, "Local:   http://localhost:%d/\n", port)
@@ -128,6 +164,9 @@ func (r *Runner) run(ctx context.Context, out io.Writer, started *Started) error
 			publicPort = int(mapping.ExternalPort)
 		}
 		fmt.Fprintf(out, "Public:  http://%s:%d/\n", public, publicPort)
+	}
+	if tunnelSession != nil {
+		fmt.Fprintf(out, "Tunnel:  %s\n", tunnelSession.URL())
 	}
 	fmt.Fprintln(out, "WARNING: This HTTP server has no TLS or authentication. Serve only files you intend to share.")
 	fmt.Fprintln(out, "         It binds to all interfaces intentionally for LAN/public serving.")
