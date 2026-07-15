@@ -16,14 +16,23 @@ type IGDDiscovery struct {
 	Timeout time.Duration
 }
 
+type igdSearch func(context.Context) ([]Client, []error, error)
+
 func (d IGDDiscovery) Discover(ctx context.Context) ([]Client, error) {
+	return d.discover(ctx, []igdSearch{
+		discoverWANIP2,
+		discoverWANIP21,
+		discoverWANIP1,
+		discoverWANPPP2,
+		discoverWANPPP1,
+	})
+}
+
+func (d IGDDiscovery) discover(ctx context.Context, searches []igdSearch) ([]Client, error) {
 	timeout := d.Timeout
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	var clients []Client
 	var errs []error
 	add := func(found []Client, discovered []error, err error) {
@@ -34,45 +43,62 @@ func (d IGDDiscovery) Discover(ctx context.Context) ([]Client, error) {
 		}
 	}
 
-	c2, e2, err2 := igd2.NewWANIPConnection2ClientsCtx(ctx)
-	var w2 []Client
-	for _, c := range c2 {
-		w2 = append(w2, wanIP2{client: c, local: c.LocalAddr()})
+	for _, search := range searches {
+		searchCtx, cancel := context.WithTimeout(ctx, timeout)
+		found, discovered, err := search(searchCtx)
+		cancel()
+		add(found, discovered, err)
 	}
-	add(w2, e2, err2)
-
-	c21, e21, err21 := igd2.NewWANIPConnection1ClientsCtx(ctx)
-	var w21 []Client
-	for _, c := range c21 {
-		w21 = append(w21, wanIP21{client: c, local: c.LocalAddr()})
-	}
-	add(w21, e21, err21)
-
-	c1, e1, err1 := igd1.NewWANIPConnection1ClientsCtx(ctx)
-	var w1 []Client
-	for _, c := range c1 {
-		w1 = append(w1, wanIP1{client: c, local: c.LocalAddr()})
-	}
-	add(w1, e1, err1)
-
-	ppp2, ep2, errp2 := igd2.NewWANPPPConnection1ClientsCtx(ctx)
-	var wp2 []Client
-	for _, c := range ppp2 {
-		wp2 = append(wp2, wanPPP2{client: c, local: c.LocalAddr()})
-	}
-	add(wp2, ep2, errp2)
-
-	ppp1, ep1, errp1 := igd1.NewWANPPPConnection1ClientsCtx(ctx)
-	var wp1 []Client
-	for _, c := range ppp1 {
-		wp1 = append(wp1, wanPPP1{client: c, local: c.LocalAddr()})
-	}
-	add(wp1, ep1, errp1)
 
 	if len(clients) == 0 && len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 	return clients, nil
+}
+
+func discoverWANIP2(ctx context.Context) ([]Client, []error, error) {
+	c2, e2, err2 := igd2.NewWANIPConnection2ClientsCtx(ctx)
+	var w2 []Client
+	for _, c := range c2 {
+		w2 = append(w2, wanIP2{client: c, local: c.LocalAddr()})
+	}
+	return w2, e2, err2
+}
+
+func discoverWANIP21(ctx context.Context) ([]Client, []error, error) {
+	c21, e21, err21 := igd2.NewWANIPConnection1ClientsCtx(ctx)
+	var w21 []Client
+	for _, c := range c21 {
+		w21 = append(w21, wanIP21{client: c, local: c.LocalAddr()})
+	}
+	return w21, e21, err21
+}
+
+func discoverWANIP1(ctx context.Context) ([]Client, []error, error) {
+	c1, e1, err1 := igd1.NewWANIPConnection1ClientsCtx(ctx)
+	var w1 []Client
+	for _, c := range c1 {
+		w1 = append(w1, wanIP1{client: c, local: c.LocalAddr()})
+	}
+	return w1, e1, err1
+}
+
+func discoverWANPPP2(ctx context.Context) ([]Client, []error, error) {
+	ppp2, ep2, errp2 := igd2.NewWANPPPConnection1ClientsCtx(ctx)
+	var wp2 []Client
+	for _, c := range ppp2 {
+		wp2 = append(wp2, wanPPP2{client: c, local: c.LocalAddr()})
+	}
+	return wp2, ep2, errp2
+}
+
+func discoverWANPPP1(ctx context.Context) ([]Client, []error, error) {
+	ppp1, ep1, errp1 := igd1.NewWANPPPConnection1ClientsCtx(ctx)
+	var wp1 []Client
+	for _, c := range ppp1 {
+		wp1 = append(wp1, wanPPP1{client: c, local: c.LocalAddr()})
+	}
+	return wp1, ep1, errp1
 }
 
 type wanIP1 struct {

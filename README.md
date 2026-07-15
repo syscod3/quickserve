@@ -17,38 +17,38 @@ https://github.com/syscod3/quickserve/releases/latest
 macOS Apple Silicon:
 
 ```bash
-curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.0/quickserve_v0.1.0_darwin_arm64.tar.gz
-tar -xzf quickserve_v0.1.0_darwin_arm64.tar.gz
+curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.1/quickserve_v0.1.1_darwin_arm64.tar.gz
+tar -xzf quickserve_v0.1.1_darwin_arm64.tar.gz
 install -m 0755 quickserve /opt/homebrew/bin/quickserve
 ```
 
 macOS Intel:
 
 ```bash
-curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.0/quickserve_v0.1.0_darwin_amd64.tar.gz
-tar -xzf quickserve_v0.1.0_darwin_amd64.tar.gz
+curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.1/quickserve_v0.1.1_darwin_amd64.tar.gz
+tar -xzf quickserve_v0.1.1_darwin_amd64.tar.gz
 install -m 0755 quickserve /usr/local/bin/quickserve
 ```
 
 Linux amd64:
 
 ```bash
-curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.0/quickserve_v0.1.0_linux_amd64.tar.gz
-tar -xzf quickserve_v0.1.0_linux_amd64.tar.gz
+curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.1/quickserve_v0.1.1_linux_amd64.tar.gz
+tar -xzf quickserve_v0.1.1_linux_amd64.tar.gz
 sudo install -m 0755 quickserve /usr/local/bin/quickserve
 ```
 
 Linux arm64:
 
 ```bash
-curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.0/quickserve_v0.1.0_linux_arm64.tar.gz
-tar -xzf quickserve_v0.1.0_linux_arm64.tar.gz
+curl -LO https://github.com/syscod3/quickserve/releases/download/v0.1.1/quickserve_v0.1.1_linux_arm64.tar.gz
+tar -xzf quickserve_v0.1.1_linux_arm64.tar.gz
 sudo install -m 0755 quickserve /usr/local/bin/quickserve
 ```
 
 Windows amd64:
 
-Download `quickserve_v0.1.0_windows_amd64.zip`, extract `quickserve.exe`, and place it in a directory on your `PATH`.
+Download `quickserve_v0.1.1_windows_amd64.zip`, extract `quickserve.exe`, and place it in a directory on your `PATH`.
 
 ## Install With Go
 
@@ -157,7 +157,7 @@ shasum -a 256 -c checksums.txt --ignore-missing
 On Windows, use:
 
 ```powershell
-Get-FileHash .\quickserve_v0.1.0_windows_amd64.zip -Algorithm SHA256
+Get-FileHash .\quickserve_v0.1.1_windows_amd64.zip -Algorithm SHA256
 ```
 
 Compare the hash to `checksums.txt`.
@@ -167,7 +167,7 @@ Compare the hash to `checksums.txt`.
 Install the GitHub CLI, then run:
 
 ```bash
-gh attestation verify --owner syscod3 quickserve_v0.1.0_darwin_arm64.tar.gz
+gh attestation verify --owner syscod3 quickserve_v0.1.1_darwin_arm64.tar.gz
 ```
 
 ## Build From Source

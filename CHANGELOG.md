@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.1
+
+- Fix UPnP discovery so routers exposing only WANIPConnection v1 or WANPPPConnection v1 can still be found after a WANIPConnection v2 search times out.
+
 ## v0.1.0
 
 - Serve a selected directory over HTTP.
