@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.5
+
+- Add `-tunnel-name` and `-tunnel-hostname` for routing Cloudflare Tunnel traffic through a custom Cloudflare-managed hostname.
+
 ## v0.1.4
 
 - Add opt-in Cloudflare Quick Tunnel support with `-tunnel cloudflare` for CGNAT networks.

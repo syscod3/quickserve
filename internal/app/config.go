@@ -7,13 +7,15 @@ import (
 )
 
 type Config struct {
-	Dir       string
-	Port      int
-	UPnP      bool
-	UPnPPort  int
-	UPnPLease time.Duration
-	Tunnel    string
-	Version   bool
+	Dir            string
+	Port           int
+	UPnP           bool
+	UPnPPort       int
+	UPnPLease      time.Duration
+	Tunnel         string
+	TunnelHostname string
+	TunnelName     string
+	Version        bool
 }
 
 func (c Config) Validate() error {
@@ -31,6 +33,15 @@ func (c Config) Validate() error {
 	}
 	if c.Tunnel != "" && c.Tunnel != "cloudflare" {
 		return fmt.Errorf("tunnel provider %q is not supported", c.Tunnel)
+	}
+	if c.TunnelHostname != "" && c.Tunnel != "cloudflare" {
+		return errors.New("tunnel hostname requires -tunnel cloudflare")
+	}
+	if c.TunnelHostname != "" && c.TunnelName == "" {
+		return errors.New("tunnel hostname requires -tunnel-name")
+	}
+	if c.TunnelName != "" && c.Tunnel != "cloudflare" {
+		return errors.New("tunnel name requires -tunnel cloudflare")
 	}
 	return nil
 }

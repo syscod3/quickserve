@@ -120,7 +120,13 @@ quickserve -dir ~/Public -tunnel cloudflare
 
 This starts a temporary Quick Tunnel and prints an HTTPS `trycloudflare.com` URL. The tunnel is closed when `quickserve` exits.
 
-Cloudflare Quick Tunnels are useful for ad hoc sharing. For stable hostnames or access policies, create a named Cloudflare Tunnel with Cloudflare Zero Trust and point it at the local `quickserve` URL.
+Use a hostname on a Cloudflare-managed zone:
+
+```bash
+quickserve -dir ~/Public -tunnel cloudflare -tunnel-name quickserve-share -tunnel-hostname share.example.com
+```
+
+Custom hostnames require `cloudflared tunnel login` or equivalent Cloudflare Tunnel credentials with permission to create and route the named tunnel. Cloudflare Quick Tunnels are useful for ad hoc sharing. For stable hostnames or access policies, create a named Cloudflare Tunnel with Cloudflare Zero Trust and point it at the local `quickserve` URL.
 
 ## Flags
 
@@ -137,6 +143,10 @@ Cloudflare Quick Tunnels are useful for ad hoc sharing. For stable hostnames or 
       UPnP lease duration; 0 requests a permanent mapping (default 1h0m0s)
 -tunnel string
       outbound tunnel provider; supported: cloudflare
+-tunnel-hostname string
+      Cloudflare hostname to route to this tunnel
+-tunnel-name string
+      Cloudflare tunnel name for custom hostname mode
 -version
       print version information and exit
 ```

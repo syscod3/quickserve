@@ -14,6 +14,12 @@ import (
 )
 
 var tryCloudflareURL = regexp.MustCompile(`https://[A-Za-z0-9-]+\.trycloudflare\.com`)
+var cloudflareReadyLine = regexp.MustCompile(`Registered tunnel connection|Route propagating|Connection .* registered`)
+
+type Options struct {
+	Hostname string
+	Name     string
+}
 
 type Session interface {
 	URL() string
@@ -33,7 +39,7 @@ type CloudflareSession struct {
 	err    error
 }
 
-func (c CloudflareQuick) Start(ctx context.Context, localURL string) (Session, error) {
+func (c CloudflareQuick) Start(ctx context.Context, localURL string, opts Options) (Session, error) {
 	command := c.Command
 	if command == "" {
 		command = "cloudflared"
@@ -44,7 +50,14 @@ func (c CloudflareQuick) Start(ctx context.Context, localURL string) (Session, e
 	}
 
 	startCtx, cancel := context.WithCancel(ctx)
-	cmd := exec.CommandContext(startCtx, path, "tunnel", "--no-autoupdate", "--url", localURL)
+	args := []string{"tunnel", "--no-autoupdate", "--url", localURL}
+	if opts.Hostname != "" {
+		args = append(args, "--hostname", opts.Hostname)
+	}
+	if opts.Name != "" {
+		args = append(args, "--name", opts.Name)
+	}
+	cmd := exec.CommandContext(startCtx, path, args...)
 	outputReader, outputWriter := io.Pipe()
 	cmd.Stdout = outputWriter
 	cmd.Stderr = outputWriter
@@ -66,7 +79,7 @@ func (c CloudflareQuick) Start(ctx context.Context, localURL string) (Session, e
 	if timeout == 0 {
 		timeout = 20 * time.Second
 	}
-	url, err := waitForURL(outputReader, done, timeout)
+	url, err := waitForURL(outputReader, done, timeout, opts.Hostname)
 	if err != nil {
 		cancel()
 		<-done
@@ -94,14 +107,14 @@ func (s *CloudflareSession) Close(ctx context.Context) error {
 	return s.err
 }
 
-func waitForURL(output io.Reader, done <-chan error, timeout time.Duration) (string, error) {
+func waitForURL(output io.Reader, done <-chan error, timeout time.Duration, hostname string) (string, error) {
 	type scanResult struct {
 		url string
 		err error
 	}
 	results := make(chan scanResult, 1)
 	go func() {
-		url, err := scanForURL(output)
+		url, err := scanForURL(output, hostname)
 		results <- scanResult{url: url, err: err}
 	}()
 
@@ -123,13 +136,16 @@ func waitForURL(output io.Reader, done <-chan error, timeout time.Duration) (str
 	}
 }
 
-func scanForURL(output io.Reader) (string, error) {
+func scanForURL(output io.Reader, hostname string) (string, error) {
 	var recent bytes.Buffer
 	scanner := bufio.NewScanner(output)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if match := tryCloudflareURL.FindString(line); match != "" {
 			return match, nil
+		}
+		if hostname != "" && cloudflareReadyLine.MatchString(line) {
+			return "https://" + hostname, nil
 		}
 		if recent.Len() < 4096 {
 			recent.WriteString(line)
@@ -140,7 +156,13 @@ func scanForURL(output io.Reader) (string, error) {
 		return "", err
 	}
 	if recent.Len() > 0 {
+		if hostname != "" {
+			return "", fmt.Errorf("cloudflared did not confirm the custom hostname tunnel: %s", recent.String())
+		}
 		return "", fmt.Errorf("cloudflared did not publish a trycloudflare URL: %s", recent.String())
+	}
+	if hostname != "" {
+		return "", errors.New("cloudflared did not confirm the custom hostname tunnel")
 	}
 	return "", errors.New("cloudflared did not publish a trycloudflare URL")
 }

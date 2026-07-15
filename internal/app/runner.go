@@ -26,7 +26,7 @@ type UPnPMapper interface {
 }
 
 type TunnelStarter interface {
-	Start(context.Context, string) (tunnel.Session, error)
+	Start(context.Context, string, tunnel.Options) (tunnel.Session, error)
 }
 
 type Runner struct {
@@ -132,7 +132,10 @@ func (r *Runner) run(ctx context.Context, out io.Writer, started *Started) error
 			_ = listener.Close()
 			return errors.New("Cloudflare tunnel requested but no tunnel runner is configured")
 		}
-		tunnelSession, err = r.tunneler.Start(ctx, fmt.Sprintf("http://127.0.0.1:%d", port))
+		tunnelSession, err = r.tunneler.Start(ctx, fmt.Sprintf("http://127.0.0.1:%d", port), tunnel.Options{
+			Hostname: r.cfg.TunnelHostname,
+			Name:     r.cfg.TunnelName,
+		})
 		if err != nil {
 			_ = listener.Close()
 			if mapping != nil {

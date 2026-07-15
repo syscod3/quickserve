@@ -23,6 +23,8 @@ func main() {
 	flag.IntVar(&cfg.UPnPPort, "upnp-port", 0, "external UPnP port; 0 uses the selected local port")
 	flag.DurationVar(&cfg.UPnPLease, "upnp-lease", time.Hour, "UPnP lease duration; 0 requests a permanent mapping")
 	flag.StringVar(&cfg.Tunnel, "tunnel", "", "outbound tunnel provider; supported: cloudflare")
+	flag.StringVar(&cfg.TunnelHostname, "tunnel-hostname", "", "Cloudflare hostname to route to this tunnel")
+	flag.StringVar(&cfg.TunnelName, "tunnel-name", "", "Cloudflare tunnel name for custom hostname mode")
 	flag.BoolVar(&cfg.Version, "version", false, "print version information and exit")
 	flag.Parse()
 

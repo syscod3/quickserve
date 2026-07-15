@@ -99,6 +99,9 @@ func TestServerStartsCloudflareTunnelAndReportsURL(t *testing.T) {
 	if tunneler.localURL != wantLocal {
 		t.Fatalf("tunnel local URL = %q, want %q", tunneler.localURL, wantLocal)
 	}
+	if tunneler.opts.Hostname != "" {
+		t.Fatalf("tunnel hostname = %q, want empty", tunneler.opts.Hostname)
+	}
 
 	cancel()
 	select {
@@ -111,6 +114,38 @@ func TestServerStartsCloudflareTunnelAndReportsURL(t *testing.T) {
 	}
 	if !tunneler.session.closed {
 		t.Fatal("tunnel was not closed")
+	}
+}
+
+func TestServerPassesCloudflareTunnelHostname(t *testing.T) {
+	root := t.TempDir()
+	tunneler := &fakeTunnelStarter{session: &fakeTunnelSession{url: "https://share.example.com"}}
+	runner := NewRunnerWithTunnel(Config{
+		Dir:            root,
+		Port:           0,
+		UPnPLease:      time.Hour,
+		Tunnel:         "cloudflare",
+		TunnelHostname: "share.example.com",
+		TunnelName:     "quickserve-test",
+	}, StaticNetInfo{
+		LAN: "192.0.2.10",
+	}, nil, tunneler)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	started, errc := runner.Start(ctx, io.Discard)
+	select {
+	case err := <-errc:
+		t.Fatalf("Start() failed: %v", err)
+	case <-started.Ready:
+	}
+	cancel()
+	<-errc
+
+	if tunneler.opts.Hostname != "share.example.com" {
+		t.Fatalf("tunnel hostname = %q, want share.example.com", tunneler.opts.Hostname)
+	}
+	if tunneler.opts.Name != "quickserve-test" {
+		t.Fatalf("tunnel name = %q, want quickserve-test", tunneler.opts.Name)
 	}
 }
 
@@ -133,11 +168,13 @@ func (s StaticNetInfo) PublicIPv4(context.Context) (string, error) {
 
 type fakeTunnelStarter struct {
 	localURL string
+	opts     tunnel.Options
 	session  *fakeTunnelSession
 }
 
-func (f *fakeTunnelStarter) Start(_ context.Context, localURL string) (tunnel.Session, error) {
+func (f *fakeTunnelStarter) Start(_ context.Context, localURL string, opts tunnel.Options) (tunnel.Session, error) {
 	f.localURL = localURL
+	f.opts = opts
 	return f.session, nil
 }
 

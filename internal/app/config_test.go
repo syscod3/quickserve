@@ -47,3 +47,24 @@ func TestValidateConfigRejectsUnsupportedTunnel(t *testing.T) {
 		t.Fatal("Validate() accepted unsupported tunnel")
 	}
 }
+
+func TestValidateConfigRejectsTunnelHostnameWithoutCloudflareTunnel(t *testing.T) {
+	cfg := Config{Dir: ".", Port: 8000, UPnPLease: time.Hour, TunnelHostname: "share.example.com", TunnelName: "quickserve"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() accepted tunnel hostname without Cloudflare tunnel")
+	}
+}
+
+func TestValidateConfigRejectsTunnelHostnameWithoutTunnelName(t *testing.T) {
+	cfg := Config{Dir: ".", Port: 8000, UPnPLease: time.Hour, Tunnel: "cloudflare", TunnelHostname: "share.example.com"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() accepted tunnel hostname without tunnel name")
+	}
+}
+
+func TestValidateConfigRejectsTunnelNameWithoutCloudflareTunnel(t *testing.T) {
+	cfg := Config{Dir: ".", Port: 8000, UPnPLease: time.Hour, TunnelName: "quickserve"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() accepted tunnel name without Cloudflare tunnel")
+	}
+}
