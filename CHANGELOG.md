@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.2
+
+- Add root-device fallback discovery for routers that do not answer exact IGD service SSDP searches.
+- Keep non-IGD UPnP device parse errors out of the final UPnP error.
+
 ## v0.1.1
 
 - Fix UPnP discovery so routers exposing only WANIPConnection v1 or WANPPPConnection v1 can still be found after a WANIPConnection v2 search times out.

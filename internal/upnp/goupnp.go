@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/url"
 	"time"
 
+	"github.com/huin/goupnp"
 	igd1 "github.com/huin/goupnp/dcps/internetgateway1"
 	igd2 "github.com/huin/goupnp/dcps/internetgateway2"
+	"github.com/huin/goupnp/ssdp"
 )
 
 type IGDDiscovery struct {
@@ -19,13 +22,23 @@ type IGDDiscovery struct {
 type igdSearch func(context.Context) ([]Client, []error, error)
 
 func (d IGDDiscovery) Discover(ctx context.Context) ([]Client, error) {
-	return d.discover(ctx, []igdSearch{
-		discoverWANIP2,
-		discoverWANIP21,
-		discoverWANIP1,
-		discoverWANPPP2,
-		discoverWANPPP1,
-	})
+	return d.discoverWithFallback(ctx, exactIGDSearches(), rootDeviceIGDSearches())
+}
+
+func exactIGDSearches() []igdSearch {
+	return []igdSearch{discoverWANIP2, discoverWANIP21, discoverWANIP1, discoverWANPPP2, discoverWANPPP1}
+}
+
+func rootDeviceIGDSearches() []igdSearch {
+	return []igdSearch{discoverRootDeviceIGD}
+}
+
+func (d IGDDiscovery) discoverWithFallback(ctx context.Context, exact, fallback []igdSearch) ([]Client, error) {
+	clients, err := d.discover(ctx, exact)
+	if len(clients) > 0 || err != nil {
+		return clients, err
+	}
+	return d.discover(ctx, fallback)
 }
 
 func (d IGDDiscovery) discover(ctx context.Context, searches []igdSearch) ([]Client, error) {
@@ -99,6 +112,81 @@ func discoverWANPPP1(ctx context.Context) ([]Client, []error, error) {
 		wp1 = append(wp1, wanPPP1{client: c, local: c.LocalAddr()})
 	}
 	return wp1, ep1, errp1
+}
+
+func discoverRootDeviceIGD(ctx context.Context) ([]Client, []error, error) {
+	devices, err := goupnp.DiscoverDevicesCtx(ctx, ssdp.UPNPRootDevice)
+	if err != nil {
+		return nil, nil, err
+	}
+	var clients []Client
+	var errs []error
+	seen := make(map[string]bool)
+	for _, device := range devices {
+		if device.Err != nil {
+			continue
+		}
+		if device.Root == nil || device.Location == nil {
+			continue
+		}
+		clients = append(clients, rootDeviceClients(device.Root, device.Location, device.LocalAddr, seen)...)
+	}
+	return clients, errs, nil
+}
+
+func rootDeviceClients(root *goupnp.RootDevice, loc *url.URL, local net.IP, seen map[string]bool) []Client {
+	var clients []Client
+	add := func(key string, found []Client, err error) {
+		if err != nil || len(found) == 0 || seen[key] {
+			return
+		}
+		seen[key] = true
+		clients = append(clients, found...)
+	}
+
+	if c2, err := igd2.NewWANIPConnection2ClientsFromRootDevice(root, loc); err == nil {
+		var out []Client
+		for _, c := range c2 {
+			out = append(out, wanIP2{client: c, local: chooseLocal(c.LocalAddr(), local)})
+		}
+		add("wanip2:"+loc.String(), out, nil)
+	}
+	if c21, err := igd2.NewWANIPConnection1ClientsFromRootDevice(root, loc); err == nil {
+		var out []Client
+		for _, c := range c21 {
+			out = append(out, wanIP21{client: c, local: chooseLocal(c.LocalAddr(), local)})
+		}
+		add("wanip21:"+loc.String(), out, nil)
+	}
+	if c1, err := igd1.NewWANIPConnection1ClientsFromRootDevice(root, loc); err == nil {
+		var out []Client
+		for _, c := range c1 {
+			out = append(out, wanIP1{client: c, local: chooseLocal(c.LocalAddr(), local)})
+		}
+		add("wanip1:"+loc.String(), out, nil)
+	}
+	if ppp2, err := igd2.NewWANPPPConnection1ClientsFromRootDevice(root, loc); err == nil {
+		var out []Client
+		for _, c := range ppp2 {
+			out = append(out, wanPPP2{client: c, local: chooseLocal(c.LocalAddr(), local)})
+		}
+		add("wanppp2:"+loc.String(), out, nil)
+	}
+	if ppp1, err := igd1.NewWANPPPConnection1ClientsFromRootDevice(root, loc); err == nil {
+		var out []Client
+		for _, c := range ppp1 {
+			out = append(out, wanPPP1{client: c, local: chooseLocal(c.LocalAddr(), local)})
+		}
+		add("wanppp1:"+loc.String(), out, nil)
+	}
+	return clients
+}
+
+func chooseLocal(primary, fallback net.IP) net.IP {
+	if primary != nil && primary.To4() != nil {
+		return primary
+	}
+	return fallback
 }
 
 type wanIP1 struct {

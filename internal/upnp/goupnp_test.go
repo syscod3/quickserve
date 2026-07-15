@@ -43,3 +43,28 @@ func TestDiscoverReportsErrorsWhenNoServicesMatch(t *testing.T) {
 		t.Fatal("discover() succeeded unexpectedly")
 	}
 }
+
+func TestDiscoverFallsBackToRootDeviceDescriptions(t *testing.T) {
+	client := &fakeClient{external: "8.8.8.8"}
+	discovery := IGDDiscovery{Timeout: time.Second}
+
+	clients, err := discovery.discoverWithFallback(
+		context.Background(),
+		[]igdSearch{
+			func(context.Context) ([]Client, []error, error) {
+				return nil, nil, nil
+			},
+		},
+		[]igdSearch{
+			func(context.Context) ([]Client, []error, error) {
+				return []Client{client}, nil, nil
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("discoverWithFallback() error = %v", err)
+	}
+	if len(clients) != 1 {
+		t.Fatalf("discoverWithFallback() returned %d clients, want 1", len(clients))
+	}
+}
