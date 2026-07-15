@@ -177,6 +177,21 @@ tunnel-name=quickserve
 tunnel-status=healthy
 ```
 
+Configure a public hostname route with the setup API token:
+
+```bash
+quickserve cloudflare route \
+  -hostname quickserve.example.com \
+  -tunnel-name quickserve \
+  -service http://localhost:8000 \
+  -api-token-env CLOUDFLARE_API_TOKEN_QUICKSERVE_SETUP
+```
+
+This command does both Cloudflare setup steps:
+
+- Adds or updates the tunnel ingress rule for `quickserve.example.com -> http://localhost:8000`.
+- Creates or updates a proxied CNAME for `quickserve.example.com -> <tunnel-id>.cfargotunnel.com`.
+
 Fish example:
 
 ```fish

@@ -106,3 +106,82 @@ func TestRunCloudflareDiscoverPrintsAccountAndTunnelIDs(t *testing.T) {
 		t.Fatalf("output = %q, want %q", out.String(), want)
 	}
 }
+
+func TestRunCloudflareRouteConfiguresIngressAndDNS(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/zones":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": []map[string]any{{
+					"id":   "zone-123",
+					"name": "example.com",
+					"account": map[string]any{
+						"id": "account-123",
+					},
+				}},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/accounts/account-123/tunnels":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": []map[string]any{{
+					"id":     "tunnel-123",
+					"name":   "quickserve",
+					"status": "healthy",
+				}},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/accounts/account-123/cfd_tunnel/tunnel-123/configurations":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{
+				"config": map[string]any{"ingress": []map[string]any{{"service": "http_status:404"}}},
+			}})
+		case r.Method == http.MethodPut && r.URL.Path == "/accounts/account-123/cfd_tunnel/tunnel-123/configurations":
+			var req struct {
+				Config struct {
+					Ingress []map[string]string `json:"ingress"`
+				} `json:"config"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatal(err)
+			}
+			if len(req.Config.Ingress) != 2 || req.Config.Ingress[0]["hostname"] != "quickserve.example.com" || req.Config.Ingress[0]["service"] != "http://localhost:8000" {
+				t.Fatalf("ingress request = %#v", req.Config.Ingress)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"config": map[string]any{"ingress": req.Config.Ingress}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/zones/zone-123/dns_records":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": []map[string]any{}})
+		case r.Method == http.MethodPost && r.URL.Path == "/zones/zone-123/dns_records":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{
+				"id":      "record-123",
+				"type":    "CNAME",
+				"name":    "quickserve.example.com",
+				"content": "tunnel-123.cfargotunnel.com",
+				"proxied": true,
+			}})
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	oldBaseURL := cloudflareAPIBaseURL
+	cloudflareAPIBaseURL = server.URL
+	defer func() {
+		cloudflareAPIBaseURL = oldBaseURL
+	}()
+
+	var out bytes.Buffer
+	err := runCloudflareRoute(context.Background(), []string{
+		"-hostname", "quickserve.example.com",
+		"-tunnel-name", "quickserve",
+		"-service", "http://localhost:8000",
+		"-api-token-env", "CF_SETUP",
+	}, &out, func(key string) string {
+		if key == "CF_SETUP" {
+			return "setup-token"
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatalf("runCloudflareRoute() error = %v", err)
+	}
+	if !strings.Contains(out.String(), "dns-record-id=record-123") {
+		t.Fatalf("output = %q", out.String())
+	}
+}

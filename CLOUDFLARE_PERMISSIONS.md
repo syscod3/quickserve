@@ -33,6 +33,24 @@ tunnel-name=quickserve
 tunnel-status=healthy
 ```
 
+To configure the public hostname route itself, run:
+
+```bash
+quickserve cloudflare route \
+  -hostname quickserve.example.com \
+  -tunnel-name quickserve \
+  -service http://localhost:8000 \
+  -api-token-env CLOUDFLARE_API_TOKEN_QUICKSERVE_SETUP
+```
+
+That command:
+
+- Finds the DNS zone from the hostname, unless `-zone` is supplied.
+- Finds the named tunnel with `-tunnel-name`.
+- Adds or updates the tunnel ingress rule for the hostname.
+- Ensures the tunnel config has a `http_status:404` fallback rule.
+- Creates or updates a proxied CNAME pointing the hostname at `<tunnel-id>.cfargotunnel.com`.
+
 Recommended local env var name:
 
 ```text

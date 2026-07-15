@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -137,5 +138,68 @@ func TestTunnelsReturnsNamedTunnel(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ID != "tunnel-123" || got[0].Name != "quickserve" {
 		t.Fatalf("Tunnels() = %#v", got)
+	}
+}
+
+func TestUpsertTunnelIngressAddsHostnameBeforeFallback(t *testing.T) {
+	got := UpsertTunnelIngress([]IngressRule{{Service: "http_status:404"}}, "quickserve.example.com", "http://localhost:8000")
+	want := []IngressRule{
+		{Hostname: "quickserve.example.com", Service: "http://localhost:8000"},
+		{Service: "http_status:404"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("UpsertTunnelIngress() = %#v, want %#v", got, want)
+	}
+}
+
+func TestUpsertTunnelIngressUpdatesExistingHostname(t *testing.T) {
+	got := UpsertTunnelIngress([]IngressRule{
+		{Hostname: "quickserve.example.com", Service: "http://localhost:9000"},
+		{Service: "http_status:404"},
+	}, "quickserve.example.com", "http://localhost:8000")
+	want := []IngressRule{
+		{Hostname: "quickserve.example.com", Service: "http://localhost:8000"},
+		{Service: "http_status:404"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("UpsertTunnelIngress() = %#v, want %#v", got, want)
+	}
+}
+
+func TestUpsertDNSCNAMECreatesRecord(t *testing.T) {
+	var created bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/zones/zone-123/dns_records":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": []map[string]any{}})
+		case r.Method == http.MethodPost && r.URL.Path == "/zones/zone-123/dns_records":
+			created = true
+			var req DNSRecord
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatal(err)
+			}
+			if req.Name != "quickserve.example.com" || req.Content != "tunnel-id.cfargotunnel.com" || !req.Proxied {
+				t.Fatalf("request = %#v", req)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{
+				"id":      "record-123",
+				"type":    "CNAME",
+				"name":    req.Name,
+				"content": req.Content,
+				"proxied": req.Proxied,
+			}})
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := Client{BaseURL: server.URL}
+	got, err := client.UpsertDNSCNAME(context.Background(), "zone-123", "quickserve.example.com", "tunnel-id.cfargotunnel.com", "setup-token")
+	if err != nil {
+		t.Fatalf("UpsertDNSCNAME() error = %v", err)
+	}
+	if !created || got.ID != "record-123" {
+		t.Fatalf("created=%v record=%#v", created, got)
 	}
 }

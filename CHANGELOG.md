@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.9
+
+- Add `quickserve cloudflare route` to configure a Cloudflare Tunnel public hostname and proxied DNS record from the setup API token.
+
 ## v0.1.8
 
 - Add `quickserve cloudflare discover` to print the Cloudflare account and tunnel IDs needed by the token command.
