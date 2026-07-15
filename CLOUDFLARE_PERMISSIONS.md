@@ -92,6 +92,32 @@ Storage guidance:
 set -Ux CLOUDFLARE_TOKEN_QUICKSERVE '<connector-token>'
 ```
 
+### How to get the runtime connector token
+
+The easiest path is the Cloudflare One dashboard:
+
+1. Open Cloudflare One.
+2. Go to Networks > Connectors > Cloudflare Tunnels.
+3. Create a tunnel, or open an existing remotely-managed tunnel.
+4. Choose `cloudflared` as the connector.
+5. Copy the install/run command Cloudflare shows for your operating system.
+6. Extract the long token value from that command.
+7. Store it locally:
+
+```fish
+set -Ux CLOUDFLARE_TOKEN_QUICKSERVE '<connector-token>'
+```
+
+The copied command usually runs `cloudflared tunnel run` with a token. That token is the value quickserve needs in `CLOUDFLARE_TOKEN_QUICKSERVE`.
+
+For automation, use the Cloudflare Tunnel API after the tunnel exists:
+
+```text
+GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/token
+```
+
+That API call requires the setup API token described above. Store the returned string as `CLOUDFLARE_TOKEN_QUICKSERVE`; do not put it directly in `.quickserverc`.
+
 ## Setup Pattern
 
 1. Use the setup API token once to create/update:
