@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const noIGDMessage = "no UPnP Internet Gateway Device (IGD) was found. UPnP may be present on the LAN, but quickserve needs a NAT router exposing WANIPConnection or WANPPPConnection. Enable UPnP/IGD on the router that performs NAT, or create a manual port forward. If this router's WAN is behind another ISP router, double NAT means the ISP router also needs forwarding or bridge/modem mode"
+
 type Client interface {
 	AddPortMapping(context.Context, MappingSpec) error
 	DeletePortMapping(context.Context, uint16, string) error
@@ -84,7 +86,7 @@ func (m *Manager) Map(ctx context.Context, req Request) (*Mapping, error) {
 		return nil, fmt.Errorf("discover UPnP IGD: %w", err)
 	}
 	if len(clients) == 0 {
-		return nil, errors.New("no compatible UPnP IGD services found")
+		return nil, errors.New(noIGDMessage)
 	}
 	spec, err := requestSpec(req, m.protocol, m.defaultTag)
 	if err != nil {

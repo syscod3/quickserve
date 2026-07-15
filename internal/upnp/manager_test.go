@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -46,6 +47,25 @@ func TestManagerReportsDiscoveryFailure(t *testing.T) {
 	_, err := m.Map(context.Background(), Request{LocalIP: net.ParseIP("192.168.1.10"), LocalPort: 8000})
 	if err == nil {
 		t.Fatal("Map() succeeded unexpectedly")
+	}
+}
+
+func TestManagerExplainsMissingIGD(t *testing.T) {
+	m := NewManager(fakeDiscovery{})
+	_, err := m.Map(context.Background(), Request{LocalIP: net.ParseIP("192.168.1.10"), LocalPort: 8000})
+	if err == nil {
+		t.Fatal("Map() succeeded unexpectedly")
+	}
+	for _, want := range []string{
+		"no UPnP Internet Gateway Device",
+		"WANIPConnection",
+		"router that performs NAT",
+		"double NAT",
+		"manual port forward",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err, want)
+		}
 	}
 }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.3
+
+- Improve the error message when UPnP exists on a LAN but no NAT router exposes an IGD WAN service.
+
 ## v0.1.2
 
 - Add root-device fallback discovery for routers that do not answer exact IGD service SSDP searches.
