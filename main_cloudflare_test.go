@@ -181,7 +181,17 @@ func TestRunCloudflareRouteConfiguresIngressAndDNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runCloudflareRoute() error = %v", err)
 	}
-	if !strings.Contains(out.String(), "dns-record-id=record-123") {
-		t.Fatalf("output = %q", out.String())
+	got := out.String()
+	for _, want := range []string{
+		"Cloudflare route configured.",
+		"This setup command exits after updating Cloudflare.",
+		"Hostname: https://quickserve.example.com/",
+		"Origin service: http://localhost:8000",
+		"Next: run quickserve -port 8000 and keep it running.",
+		"dns-record-id: record-123",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("output missing %q:\n%s", want, got)
+		}
 	}
 }

@@ -51,6 +51,12 @@ That command:
 - Ensures the tunnel config has a `http_status:404` fallback rule.
 - Creates or updates a proxied CNAME pointing the hostname at `<tunnel-id>.cfargotunnel.com`.
 
+`quickserve cloudflare route` is setup-only. It exits after updating Cloudflare. To actually serve files through an existing `cloudflared` service, run quickserve separately on the configured origin port and keep it running:
+
+```bash
+quickserve -port 8000
+```
+
 Recommended local env var name:
 
 ```text

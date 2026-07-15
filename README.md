@@ -198,6 +198,12 @@ This command does both Cloudflare setup steps:
 - Adds or updates the tunnel ingress rule for `quickserve.example.com -> http://localhost:8000`.
 - Creates or updates a proxied CNAME for `quickserve.example.com -> <tunnel-id>.cfargotunnel.com`.
 
+`quickserve cloudflare route` is a setup command. It prints what it configured and exits. To serve files through an existing `cloudflared` service after setup, run quickserve separately and keep it running:
+
+```bash
+quickserve -dir ~/Public -port 8000
+```
+
 Fish example:
 
 ```fish
@@ -207,7 +213,7 @@ set -Ux CLOUDFLARE_TOKEN_QUICKSERVE (quickserve cloudflare token \
   -api-token-env CLOUDFLARE_API_TOKEN_QUICKSERVE_SETUP)
 ```
 
-If `cloudflared` is already installed as a system service and the Cloudflare public hostname routes to the local quickserve origin, do not use `-tunnel`. Run quickserve on the configured origin port:
+If `cloudflared` is already installed as a system service and the Cloudflare public hostname routes to the local quickserve origin, do not use `-tunnel`. Run quickserve on the configured origin port and leave it running:
 
 ```bash
 quickserve -dir ~/Public -port 8000

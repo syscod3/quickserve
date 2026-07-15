@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.11
+
+- Make `quickserve cloudflare route` output explicit that it configures Cloudflare and exits, then prints the `quickserve -port ...` serve command to run next.
+
 ## v0.1.10
 
 - Move the canonical repository to `syscode-labs/quickserve`.

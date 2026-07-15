@@ -231,12 +231,15 @@ func runCloudflareRoute(ctx context.Context, args []string, out io.Writer, geten
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "account-id=%s\n", zone.Account.ID)
-	fmt.Fprintf(out, "tunnel-id=%s\n", tunnel.ID)
-	fmt.Fprintf(out, "tunnel-name=%s\n", tunnel.Name)
-	fmt.Fprintf(out, "hostname=%s\n", hostname)
-	fmt.Fprintf(out, "service=%s\n", service)
-	fmt.Fprintf(out, "dns-record-id=%s\n", record.ID)
+	fmt.Fprintln(out, "Cloudflare route configured.")
+	fmt.Fprintln(out, "This setup command exits after updating Cloudflare.")
+	fmt.Fprintf(out, "Hostname: https://%s/\n", hostname)
+	fmt.Fprintf(out, "Origin service: %s\n", service)
+	fmt.Fprintf(out, "Tunnel: %s (%s)\n", tunnel.Name, tunnel.ID)
+	fmt.Fprintf(out, "DNS record: %s -> %s\n", hostname, record.Content)
+	fmt.Fprintf(out, "account-id: %s\n", zone.Account.ID)
+	fmt.Fprintf(out, "dns-record-id: %s\n", record.ID)
+	fmt.Fprintln(out, "Next: run quickserve -port 8000 and keep it running.")
 	return nil
 }
 
